@@ -4,7 +4,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer, LoginSerializer, UserDetailSerializer, UserUpdateSerializer
+from .serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    UserDetailSerializer,
+    UserUpdateSerializer,
+    ChildSerializer
+)
+from rest_framework import viewsets
+from .models import Child
+from rest_framework.permissions import IsAuthenticated
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -67,3 +77,25 @@ class UserDeleteView(generics.DestroyAPIView):
 
     def get_object(self):
         return self.request.user  # Eliminar el usuario autenticado
+
+
+class ChildViewSet(viewsets.ModelViewSet):
+    queryset = Child.objects.all()
+    serializer_class = ChildSerializer
+
+    def get_queryset(self):
+        # Si necesitas que los usuarios solo vean sus propios hijos, puedes filtrar aquí
+        user = self.request.user
+        return Child.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        # Asociar el hijo creado con el usuario autenticado
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        # Puedes realizar acciones adicionales en la actualización si es necesario
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        # Puedes realizar acciones adicionales al eliminar un hijo si es necesario
+        instance.delete()
