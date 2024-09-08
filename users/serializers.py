@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-
+from .models import Child, User
 
 class RegisterSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True)
@@ -13,7 +13,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'email', 'username', 'password']
-
 
     def validate_username(self, value):
         """
@@ -50,10 +49,17 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(required=True)
 
 
+class ChildSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Child
+        fields = ['id', 'user', 'first_name', 'date_of_birth']
+
+
 class UserDetailSerializer(serializers.ModelSerializer):
+    children = ChildSerializer(many=True, read_only=True)
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'username', 'email']
+        fields = ['id', 'first_name', 'last_name', 'username', 'email', 'children']
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -84,3 +90,5 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
