@@ -3,11 +3,14 @@ from .models import Event, EventRegistration
 
 
 class EventRegistrationSerializer(serializers.ModelSerializer):
-    child_name = serializers.CharField(source='child.first_name', read_only=True)
-
     class Meta:
         model = EventRegistration
-        fields = ['id', 'child_name', 'registered_at']
+        fields = ['id', 'event', 'child', 'user', 'registered_at']
+
+    def validate(self, data):
+        if 'event' not in data or 'child' not in data:
+            raise serializers.ValidationError("Both 'event' and 'child' are required fields.")
+        return data
 
 
 class EventSerializer(serializers.ModelSerializer):

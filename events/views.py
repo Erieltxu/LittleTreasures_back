@@ -1,6 +1,8 @@
-from rest_framework import viewsets, permissions, serializers  # Asegúrate de que serializers está importado
-from .models import Event, EventRegistration
+from rest_framework import viewsets, permissions, serializers
+from .models import Event, EventRegistration, Child
 from .serializers import EventSerializer, EventRegistrationSerializer
+from rest_framework.exceptions import ValidationError
+
 
 class EventView(viewsets.ModelViewSet):
     queryset = Event.objects.all()
@@ -20,9 +22,25 @@ class EventRegistrationView(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Restar una plaza del evento al inscribir
-        event = serializer.validated_data['event']
+        data = self.request.data
+        event_id = data.get('event')
+        child_id = data.get('child')
+
+        # Verificar si los datos existen
+        if event_id is None or child_id is None:
+            raise ValidationError('El campo "event" y "child" son obligatorios.')
+
+        try:
+            event = Event.objects.get(id=event_id)
+            child = Child.objects.get(id=child_id)
+        except Event.DoesNotExist:
+            raise ValidationError('El evento especificado no existe.')
+        except Child.DoesNotExist:
+            raise ValidationError('El niño especificado no existe.')
+
+        # Verificar plazas disponibles
         if event.spots > event.registrations.count():
+            # Aquí se guarda el campo `user` automáticamente
             serializer.save(user=self.request.user)
         else:
-            raise serializers.ValidationError('No hay plazas disponibles.')
+            raise ValidationError('No hay plazas disponibles.')

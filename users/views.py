@@ -1,19 +1,33 @@
 from rest_framework import generics, permissions, views, status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework import viewsets
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer, LoginSerializer, UserDetailSerializer, UserUpdateSerializer
+from .models import Child
+from .serializers import (ChildSerializer, LoginSerializer, UserDetailSerializer, UserUpdateSerializer,
+                          RegisterSerializer)
+from rest_framework.permissions import IsAuthenticated
+
+
+class ChildViewSet(viewsets.ModelViewSet):
+    serializer_class = ChildSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Child.objects.filter(user=user)
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]  # Permitir a cualquiera registrarse
+    permission_classes = [permissions.AllowAny]
 
 
 class UserLoginView(APIView):
-    permission_classes = [permissions.AllowAny]  # Permitir a cualquiera intentar loguearse
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -32,7 +46,7 @@ class UserLoginView(APIView):
 
 
 class LogoutView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]  # Solo permitir logout si el usuario está autenticado
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         try:
@@ -48,8 +62,19 @@ class UserDetailView(generics.RetrieveAPIView):
     serializer_class = UserDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        return self.request.user  # Retornar el usuario autenticado
+    def get(self, request):
+        user = request.user
+        children = Child.objects.filter(user=user)
+        child_serializer = ChildSerializer(children, many=True)
+        profile_data = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'children': child_serializer.data
+        }
+        return Response(profile_data)
 
 
 class UserUpdateView(generics.UpdateAPIView):
@@ -58,7 +83,7 @@ class UserUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user  # Retornar el usuario autenticado para actualizar sus datos
+        return self.request.user
 
 
 class UserDeleteView(generics.DestroyAPIView):
@@ -66,4 +91,13 @@ class UserDeleteView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user  # Eliminar el usuario autenticado
+        return self.request.user
+
+
+class RegisterChildView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = ChildSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
