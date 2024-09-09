@@ -2,18 +2,33 @@ from rest_framework import viewsets, permissions, serializers
 from .models import Event, EventRegistration, Child
 from .serializers import EventSerializer, EventRegistrationSerializer
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAdminUser
 
 
 class EventView(viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer
 
+
     def get_permissions(self):
-        if self.request.method == 'GET':
-            self.permission_classes = [permissions.AllowAny]
+        if self.request.method in ['POST', 'PUT', 'DELETE']:
+            self.permission_classes = [IsAdminUser]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [IsAuthenticatedOrReadOnly]
         return super().get_permissions()
+
+    def perform_update(self, serializer):
+        """
+        Actualiza un evento si el usuario tiene permisos.
+        """
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Elimina un evento si el usuario tiene permisos.
+        """
+        instance.delete()
 
 
 class EventRegistrationView(viewsets.ModelViewSet):
@@ -26,7 +41,7 @@ class EventRegistrationView(viewsets.ModelViewSet):
         event_id = data.get('event')
         child_id = data.get('child')
 
-        # Verificar si los datos existen
+
         if event_id is None or child_id is None:
             raise ValidationError('El campo "event" y "child" son obligatorios.')
 
@@ -38,9 +53,8 @@ class EventRegistrationView(viewsets.ModelViewSet):
         except Child.DoesNotExist:
             raise ValidationError('El niño especificado no existe.')
 
-        # Verificar plazas disponibles
+
         if event.spots > event.registrations.count():
-            # Aquí se guarda el campo `user` automáticamente
             serializer.save(user=self.request.user)
         else:
             raise ValidationError('No hay plazas disponibles.')
