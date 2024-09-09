@@ -9,6 +9,7 @@ from .models import Child
 from .serializers import (ChildSerializer, LoginSerializer, UserDetailSerializer, UserUpdateSerializer,
                           RegisterSerializer)
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
 
 
 class ChildViewSet(viewsets.ModelViewSet):
@@ -101,3 +102,10 @@ class RegisterChildView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def is_admin(request):
+    if request.user.is_authenticated and request.user.is_staff:
+        return Response({'is_admin': True})
+    return Response({'is_admin': False})
